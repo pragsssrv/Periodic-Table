@@ -1,10 +1,10 @@
-# Go to:
+# Context:
 * [Birds](#birds)
 * [Keybinds](#keybinds)
 * [Medals](#medals)
 * [Shop](#shop)
 * [Cookies](#cookies)
-* [Credits](#credits)
+* [Connect](#connect)
 
 # Flappy-Bird
 Flappy Bird completely made in html, css and javascript
