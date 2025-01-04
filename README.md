@@ -15,7 +15,7 @@ This is a Flappy Bird game built with HTML, CSS, and JavaScript. It includes a c
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/pragsssrv/Flappy-Bird.git
+   git clone https://github.com/pragsrv/Flappy-Bird.git
    cd Flappy-Bird
    ```
 
