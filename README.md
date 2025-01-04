@@ -32,7 +32,7 @@ To run this project, you need a web browser. No additional software or libraries
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/interactive-periodic-table.git
+   git clone https://github.com/pragsssrv/periodic-table.git
    ```
 2. **Navigate to the project directory**:
    ```bash
@@ -56,9 +56,8 @@ To run this project, you need a web browser. No additional software or libraries
 
 ## File Structure
 
-- `index.html`: Main HTML file for the periodic table.
+- `index.html`: Main HTML file for the periodic table along with javascript codes.
 - `styles.css`: CSS file containing styles for the periodic table and controls.
-- `scripts.js`: JavaScript file containing logic for creating, populating, and filtering the table.
 - `README.md`: This file.
 
 ### Example Code
