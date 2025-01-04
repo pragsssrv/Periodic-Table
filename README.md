@@ -5,14 +5,19 @@
 This project is an interactive periodic table built using HTML, CSS, and JavaScript. It provides a visual representation of the elements with detailed information accessible via clicks. The table supports searching and filtering by element type.
 
 
-
 ## Features
-
-- **Interactive Elements**: Click on any element to view its details.
-- **Search Bar**: Search for elements by symbol or name.
-- **Category Filter**: Filter elements by type (e.g., Metals, Nonmetals).
 - **Color-Coded Categories**: Elements are color-coded based on their type for easy identification.
-
+  
+![landing-page](https://github.com/pragsssrv/Periodic-Table/blob/ccf9f42b0ab70c16a95b921252e92e8b15df8a92/samples/image1.png?raw=true)
+- **Interactive Elements**: Click on any element to view its details.
+  
+![](https://github.com/pragsssrv/Periodic-Table/blob/ccf9f42b0ab70c16a95b921252e92e8b15df8a92/samples/image2.png?raw=true)
+- **Search Bar**: Search for elements by symbol or name.
+  
+![](https://github.com/pragsssrv/Periodic-Table/blob/ccf9f42b0ab70c16a95b921252e92e8b15df8a92/samples/image4.png?raw=true)
+- **Category Filter**: Filter elements by type (e.g., Metals, Nonmetals).
+  
+![](https://github.com/pragsssrv/Periodic-Table/blob/ccf9f42b0ab70c16a95b921252e92e8b15df8a92/samples/image3.png?raw=true)
 ## Table of Contents
 
 - [Features](#features)
