@@ -1,52 +1,159 @@
+/* Base styles */
 body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
+    background: rgba(224, 247, 250, 0.3); /* Set a base color with 30% opacity */
+    background: linear-gradient(135deg, rgba(224, 247, 250, 0.3), rgba(178, 235, 242, 0.3)); /* Retain gradient with reduced opacity */
     margin: 0;
-    background-color: #70c5ce;
-    overflow: hidden;
-    font-family: Arial, sans-serif;
+    color: #fff; /* Set text color to white for dark mode */
 }
 
-canvas {
-    border: 1px solid #000;
-}
-
-#pauseMenu, #leaderboard {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    padding: 20px;
+/* Periodic Table Container */
+table {
+    border-collapse: collapse;
+    margin-top: 20px;
+    width: 60%; /* Further reduce width to 60% */
+    max-width: 600px; /* Set a maximum width */
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2); /* Enhanced shadow */
     border-radius: 10px;
+}
+
+/* Table Cells */
+th, td {
+    border: 1px solid #33323200;
+    padding: 1px; /* Further reduced padding for smaller cells */
     text-align: center;
-    display: none;
+    font-size: 0.6em; /* Further reduced font size for smaller text */
+    font-weight: bold;
+    background: #12121200; /* Updated background color */
+    transition: background-color 0.3s ease;
 }
 
-#pauseMenu button, #leaderboard button {
-    background-color: #ffcc00;
-    border: none;
-    padding: 10px 20px;
-    font-size: 16px;
+td {
     cursor: pointer;
-    border-radius: 5px;
-    margin: 10px;
 }
 
-#pauseMenu button:hover, #leaderboard button:hover {
-    background-color: #ff9900;
+/* Element box styling */
+.element {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2px; /* Further reduced padding for elements */
+    cursor: pointer;
+    border: 2px solid #ffffff20;
+    border-radius: 8px;
+    color: #4a4848;
+    font-size: 1.2em;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-size: 200% 200%;
 }
 
-#leaderboard ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+/* Element colors */
+.metal { background-color: rgba(255, 204, 128, 0.7); } /* Updated color for metals */
+.nonmetal { background-color: rgba(129, 212, 250, 0.7); } /* Updated color for nonmetals */
+.metalloid { background-color: rgba(255, 171, 145, 0.7); } /* Updated color for metalloids */
+.noble { background-color: rgba(179, 157, 219, 0.7); } /* Updated color for noble gases */
+.lanthanide { background-color: rgba(128, 222, 234, 0.7); } /* Updated color for lanthanides */
+.actinide { background-color: rgba(255, 138, 128, 0.7); } /* Updated color for actinides */
+
+
+/* Controls styling */
+.controls {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    gap: 15px;
 }
 
-#leaderboard li {
-    padding: 5px 0;
-    border-bottom: 1px solid #fff;
+/* Search bar styling */
+#search-bar {
+    padding: 12px 20px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 30px;
+    font-size: 1em;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #ffcc80d7, #81d4fad3);
+    color: #ffe1e1;
+}
+
+#search-bar:focus {
+    outline: none;
+    border-color: #3366cc;
+    box-shadow: 0 0 8px rgba(51, 102, 204, 0.4);
+}
+
+/* Category filter styling */
+#category-filter {
+    padding: 12px 20px;
+    border: 1px solid #ddd;
+    border-radius: 30px;
+    font-size: 1em;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #ffcc80d7, #81d4fad3); /* Gradient background for metals and nonmetals */
+    color: #454444; /* Text color */
+}
+
+#category-filter:focus {
+    outline: none;
+    border-color: #3366cc;
+    box-shadow: 0 0 8px rgba(51, 102, 204, 0.4);
+}
+
+/* Change the color of the dropdown arrow */
+#category-filter option {
+    background: #ffffff; /* White background for options */
+    color: #333; /* Text color for options */
+}
+
+/* Add responsive design */
+@media (max-width: 768px) {
+    table {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .controls {
+        flex-direction: column;
+    }
+
+    #search-bar, #category-filter {
+        width: 100%;
+    }
+}
+
+/* Set a fixed height for table rows */
+tr {
+    height: 25px; /* Further reduced height */
+}
+
+/* Tooltip styling */
+.tooltip {
+    display: none; /* Hidden by default */
+    position: absolute; /* Position it absolutely */
+    background-color: rgba(255, 255, 255, 0.9); /* Light background */
+    border: 1px solid #ccc; /* Border */
+    border-radius: 5px; /* Rounded corners */
+    padding: 10px; /* Padding */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* Shadow for depth */
+    z-index: 10; /* Ensure it appears above other elements */
+    white-space: pre-wrap; /* Preserve whitespace for formatting */
+}
+
+#background-video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the video covers the entire background */
+    z-index: -1; /* Places the video behind other content */
 }

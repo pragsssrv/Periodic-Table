@@ -1,306 +1,234 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-// Game constants
-const CANVAS_WIDTH = 320;
-const CANVAS_HEIGHT = 480;
-const BIRD_WIDTH = 34;
-const BIRD_HEIGHT = 24;
-const GRAVITY = 0.25;
-const FLAP_STRENGTH = 4.5;
-const PIPE_WIDTH = 50;
-const PIPE_GAP = 120;
-const PIPE_INTERVAL = 1500; // milliseconds
-const BACKGROUND_SPEED = 1;
-const FOREGROUND_SPEED = 2;
-const PAUSE_MENU_WIDTH = 200;
-const PAUSE_MENU_HEIGHT = 150;
-const LEADERBOARD_SIZE = 5;
-
-// Bird variables
-let birdX = CANVAS_WIDTH / 4;
-let birdY = CANVAS_HEIGHT / 2;
-let birdVelocity = 0;
-let birdFrame = 0;
-let birdAnimationCounter = 0;
-const birdFrames = ['yellow', 'orange', 'red']; // Different bird colors
-
-// Pipe variables
-let pipes = [];
-let pipeTimer = 0;
-let pipeSpeed = 2;
-
-// Scoring
-let score = 0;
-let highScore = 0;
-const leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
-
-// Game state
-let gameRunning = false;
-let gameStarted = false;
-let countdown = 3;
-let countdownStartTime = 0; // Initialize countdownStartTime
-let gamePaused = false;
-
-// Background variables
-let backgroundX = 0;
-let backgroundSpeed = BACKGROUND_SPEED;
-let foregroundX = 0;
-let foregroundSpeed = FOREGROUND_SPEED;
-
-// Canvas setup
-canvas.width = CANVAS_WIDTH;
-canvas.height = CANVAS_HEIGHT;
-
-// Create pause menu
-const pauseMenu = document.getElementById('pauseMenu');
-const leaderboardMenu = document.getElementById('leaderboard');
-
-// Create leaderboard list
-const leaderboardList = document.getElementById('leaderboardList');
-const backToGameButton = document.getElementById('backToGameButton');
-const resumeButton = document.getElementById('resumeButton');
-const restartButton = document.getElementById('restartButton');
-const mainMenuButton = document.getElementById('mainMenuButton');
-
-// Event listeners
-document.addEventListener('keydown', function(event) {
-    if (event.code === 'Space' && gameRunning) {
-        birdVelocity = -FLAP_STRENGTH;
-    }
-    if (event.code === 'Escape') {
-        togglePause();
-    }
-});
-
-canvas.addEventListener('click', function() {
-    if (!gameRunning) {
-        resetGame();
-    }
-});
-
-resumeButton.addEventListener('click', function() {
-    togglePause();
-});
-
-restartButton.addEventListener('click', function() {
-    resetGame();
-    togglePause();
-});
-
-mainMenuButton.addEventListener('click', function() {
-    showLeaderboard();
-});
-
-backToGameButton.addEventListener('click', function() {
-    hideLeaderboard();
-});
-
-// Game loop
-function gameLoop() {
-    if (gameRunning) {
-        update();
-    }
-    draw();
-    requestAnimationFrame(gameLoop);
-}
-
-// Update game state
-function update() {
-    birdVelocity += GRAVITY;
-    birdY += birdVelocity;
-    birdAnimationCounter = (birdAnimationCounter + 1) % 6;
-    if (birdAnimationCounter === 0) {
-        birdFrame = (birdFrame + 1) % birdFrames.length;
-    }
-
-    // Check collision with canvas boundaries
-    if (birdY + BIRD_HEIGHT > CANVAS_HEIGHT - 50 || birdY < 0) {
-        gameOver();
-    }
-
-    // Pipe generation
-    pipeTimer += 16.67; // Approximation for 60 FPS
-    if (pipeTimer > PIPE_INTERVAL) {
-        generatePipe();
-        pipeTimer = 0;
-    }
-
-    // Update pipes
-    for (let i = 0; i < pipes.length; i++) {
-        pipes[i].x -= pipeSpeed;
-        if (pipes[i].x + PIPE_WIDTH < 0) {
-            pipes.splice(i, 1);
-            i--;
-            score++;
-        }
-    }
-
-    // Check collision with pipes
-    for (let pipe of pipes) {
-        if (
-            birdX < pipe.x + PIPE_WIDTH &&
-            birdX + BIRD_WIDTH > pipe.x &&
-            (birdY < pipe.topHeight || birdY + BIRD_HEIGHT > pipe.bottomY)
-        ) {
-            gameOver();
-        }
-    }
-
-    // Scroll background
-    backgroundX -= backgroundSpeed;
-    if (backgroundX <= -CANVAS_WIDTH) {
-        backgroundX = 0;
-    }
-
-    // Scroll foreground
-    foregroundX -= foregroundSpeed;
-    if (foregroundX <= -CANVAS_WIDTH) {
-        foregroundX = 0;
-    }
-}
-
-// Draw game elements
-function draw() {
-    // Draw background
-    ctx.fillStyle = '#87CEEB'; // Lighter blue for the sky
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    ctx.fillStyle = '#4DB6AC'; // Darker green for distant mountains
-    ctx.fillRect(backgroundX, CANVAS_HEIGHT - 150, CANVAS_WIDTH, 150); // Background layer
-
-    // Draw bird
-    ctx.fillStyle = birdFrames[birdFrame];
-    ctx.beginPath();
-    ctx.arc(birdX + BIRD_WIDTH / 2, birdY + BIRD_HEIGHT / 2, BIRD_WIDTH / 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw pipes
-    ctx.fillStyle = 'green';
-    for (let pipe of pipes) {
-        ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.topHeight);
-        ctx.fillRect(pipe.x, pipe.bottomY, PIPE_WIDTH, CANVAS_HEIGHT - pipe.bottomY);
-    }
-
-    // Draw foreground
-    ctx.fillStyle = 'brown';
-    ctx.fillRect(0, CANVAS_HEIGHT - 50, CANVAS_WIDTH, 50);
-
-    // Draw score
-    ctx.fillStyle = 'white';
-    ctx.font = '20px Arial';
-    ctx.fillText(`Score: ${score}`, 10, 25);
-    ctx.fillText(`High Score: ${highScore}`, 10, 50);
-
-    // Draw pause menu
-    if (gamePaused) {
-        pauseMenu.style.display = 'block';
-    } else {
-        pauseMenu.style.display = 'none';
-    }
-
-    // Draw leaderboard
-    if (leaderboardMenu.style.display === 'block') {
-        renderLeaderboard();
-    }
-
-    // Draw game over message
-    if (!gameRunning && gameStarted) {
-        ctx.fillStyle = 'red';
-        ctx.font = '30px Arial';
-        ctx.fillText('Game Over', CANVAS_WIDTH / 2 - 80, CANVAS_HEIGHT / 2);
-        ctx.font = '20px Arial';
-        ctx.fillText('Click to Restart', CANVAS_WIDTH / 2 - 85, CANVAS_HEIGHT / 2 + 30);
-    }
-
-    // Draw countdown
-    if (!gameStarted && countdown > 0) {
-        ctx.fillStyle = 'white';
-        ctx.font = '50px Arial';
-        ctx.fillText(countdown, CANVAS_WIDTH / 2 - 20, CANVAS_HEIGHT / 2);
-        if (Date.now() - countdownStartTime > 1000) {
-            countdown--;
-            countdownStartTime = Date.now();
-        }
-    }
-}
-
-// Generate new pipe
-function generatePipe() {
-    const topHeight = Math.random() * (CANVAS_HEIGHT - PIPE_GAP - 100) + 50;
-    const bottomY = topHeight + PIPE_GAP;
-    pipes.push({
-        x: CANVAS_WIDTH,
-        topHeight: topHeight,
-        bottomY: bottomY
+//js
+// Full data for periodic table with correct positions
+const elementsData = [
+    { symbol: 'H', name: 'Hydrogen', atomic: 1, category: 'nonmetal', info: 'The lightest element.', position: { row: 1, col: 1 } },
+    { symbol: 'He', name: 'Helium', atomic: 2, category: 'noble gas', info: 'A noble gas used in balloons.', position: { row: 1, col: 18 } },
+    { symbol: 'Li', name: 'Lithium', atomic: 3, category: 'metal', info: 'A soft, silvery-white metal.', position: { row: 2, col: 1 } },
+    { symbol: 'Be', name: 'Beryllium', atomic: 4, category: 'metal', info: 'A strong, lightweight metal.', position: { row: 2, col: 2 } },
+    { symbol: 'B', name: 'Boron', atomic: 5, category: 'metalloid', info: 'Used in borosilicate glass.', position: { row: 2, col: 13 } },
+    { symbol: 'C', name: 'Carbon', atomic: 6, category: 'nonmetal', info: 'Essential for life.', position: { row: 2, col: 14 } },
+    { symbol: 'N', name: 'Nitrogen', atomic: 7, category: 'nonmetal', info: 'Makes up 78% of Earth\'s atmosphere.', position: { row: 2, col: 15 } },
+    { symbol: 'O', name: 'Oxygen', atomic: 8, category: 'nonmetal', info: 'Essential for respiration.', position: { row: 2, col: 16 } },
+    { symbol: 'F', name: 'Fluorine', atomic: 9, category: 'nonmetal', info: 'The most reactive nonmetal.', position: { row: 2, col: 17 } },
+    { symbol: 'Ne', name: 'Neon', atomic: 10, category: 'noble gas', info: 'Used in neon signs.', position: { row: 2, col: 18 } },
+    { symbol: 'Na', name: 'Sodium', atomic: 11, category: 'metal', info: 'Soft, silvery metal used in table salt.', position: { row: 3, col: 1 } },
+    { symbol: 'Mg', name: 'Magnesium', atomic: 12, category: 'metal', info: 'Used in fireworks and flares.', position: { row: 3, col: 2 } },
+    { symbol: 'Al', name: 'Aluminum', atomic: 13, category: 'metal', info: 'Used in cans and foil.', position: { row: 3, col: 13 } },
+    { symbol: 'Si', name: 'Silicon', atomic: 14, category: 'metalloid', info: 'Used in semiconductors.', position: { row: 3, col: 14 } },
+    { symbol: 'P', name: 'Phosphorus', atomic: 15, category: 'nonmetal', info: 'Used in fertilizers.', position: { row: 3, col: 15 } },
+    { symbol: 'S', name: 'Sulfur', atomic: 16, category: 'nonmetal', info: 'Used in gunpowder.', position: { row: 3, col: 16 } },
+    { symbol: 'Cl', name: 'Chlorine', atomic: 17, category: 'nonmetal', info: 'Used in disinfectants.', position: { row: 3, col: 17 } },
+    { symbol: 'Ar', name: 'Argon', atomic: 18, category: 'noble gas', info: 'Used in inert gas applications.', position: { row: 3, col: 18 } },
+    { symbol: 'K', name: 'Potassium', atomic: 19, category: 'metal', info: 'Used in fertilizers.', position: { row: 4, col: 1 } },
+    { symbol: 'Ca', name: 'Calcium', atomic: 20, category: 'metal', info: 'Important for bones and teeth.', position: { row: 4, col: 2 } },
+    { symbol: 'Sc', name: 'Scandium', atomic: 21, category: 'metal', info: 'Used in aluminum alloys.', position: { row: 4, col: 3 } },
+    { symbol: 'Ti', name: 'Titanium', atomic: 22, category: 'metal', info: 'Strong and lightweight metal.', position: { row: 4, col: 4 } },
+    { symbol: 'V', name: 'Vanadium', atomic: 23, category: 'metal', info: 'Used in steel alloys.', position: { row: 4, col: 5 } },
+    { symbol: 'Cr', name: 'Chromium', atomic: 24, category: 'metal', info: 'Used in stainless steel.', position: { row: 4, col: 6 } },
+    { symbol: 'Mn', name: 'Manganese', atomic: 25, category: 'metal', info: 'Used in steel production.', position: { row: 4, col: 7 } },
+    { symbol: 'Fe', name: 'Iron', atomic: 26, category: 'metal', info: 'Common metal used in construction.', position: { row: 4, col: 8 } },
+    { symbol: 'Co', name: 'Cobalt', atomic: 27, category: 'metal', info: 'Used in blue pigments.', position: { row: 4, col: 9 } },
+    { symbol: 'Ni', name: 'Nickel', atomic: 28, category: 'metal', info: 'Used in coins and batteries.', position: { row: 4, col: 10 } },
+    { symbol: 'Cu', name: 'Copper', atomic: 29, category: 'metal', info: 'Used in electrical wiring.', position: { row: 4, col: 11 } },
+    { symbol: 'Zn', name: 'Zinc', atomic: 30, category: 'metal', info: 'Used in galvanizing iron.', position: { row: 4, col: 12 } },
+    { symbol: 'Ga', name: 'Gallium', atomic: 31, category: 'metal', info: 'Melts just above room temperature.', position: { row: 4, col: 13 } },
+    { symbol: 'Ge', name: 'Germanium', atomic: 32, category: 'metalloid', info: 'Used in semiconductors.', position: { row: 4, col: 14 } },
+    { symbol: 'As', name: 'Arsenic', atomic: 33, category: 'metalloid', info: 'Used in pesticides.', position: { row: 4, col: 15 } },
+    { symbol: 'Se', name: 'Selenium', atomic: 34, category: 'nonmetal', info: 'Used in electronics.', position: { row: 4, col: 16 } },
+    { symbol: 'Br', name: 'Bromine', atomic: 35, category: 'nonmetal', info: 'Used in flame retardants.', position: { row: 4, col: 17 } },
+    { symbol: 'Kr', name: 'Krypton', atomic: 36, category: 'noble gas', info: 'Used in high-performance lighting.', position: { row: 4, col: 18 } },
+    { symbol: 'Rb', name: 'Rubidium', atomic: 37, category: 'metal', info: 'Highly reactive alkali metal.', position: { row: 5, col: 1 } },
+    { symbol: 'Sr', name: 'Strontium', atomic: 38, category: 'metal', info: 'Used in fireworks and flares.', position: { row: 5, col: 2 } },
+    { symbol: 'Y', name: 'Yttrium', atomic: 39, category: 'metal', info: 'Used in superconductors.', position: { row: 5, col: 3 } },
+    { symbol: 'Zr', name: 'Zirconium', atomic: 40, category: 'metal', info: 'Used in nuclear reactors.', position: { row: 5, col: 4 } },
+    { symbol: 'Nb', name: 'Niobium', atomic: 41, category: 'metal', info: 'Used in steel alloys.', position: { row: 5, col: 5 } },
+    { symbol: 'Mo', name: 'Molybdenum', atomic: 42, category: 'metal', info: 'Used in steel strengthening.', position: { row: 5, col: 6 } },
+    { symbol: 'Tc', name: 'Technetium', atomic: 43, category: 'metal', info: 'Used in medical imaging.', position: { row: 5, col: 7 } },
+    { symbol: 'Ru', name: 'Ruthenium', atomic: 44, category: 'metal', info: 'Used in electrical contacts.', position: { row: 5, col: 8 } },
+    { symbol: 'Rh', name: 'Rhodium', atomic: 45, category: 'metal', info: 'Used in catalytic converters.', position: { row: 5, col: 9 } },
+    { symbol: 'Pd', name: 'Palladium', atomic: 46, category: 'metal', info: 'Used in jewelry and catalytic converters.', position: { row: 5, col: 10 } },
+    { symbol: 'Ag', name: 'Silver', atomic: 47, category: 'metal', info: 'Used in jewelry and cutlery.', position: { row: 5, col: 11 } },
+    { symbol: 'Cd', name: 'Cadmium', atomic: 48, category: 'metal', info: 'Used in batteries and pigments.', position: { row: 5, col: 12 } },
+    { symbol: 'In', name: 'Indium', atomic: 49, category: 'metal', info: 'Used in electronics and alloys.', position: { row: 5, col: 13 } },
+    { symbol: 'Sn', name: 'Tin', atomic: 50, category: 'metal', info: 'Used in soldering.', position: { row: 5, col: 14 } },
+    { symbol: 'Sb', name: 'Antimony', atomic: 51, category: 'metalloid', info: 'Used in flame retardants.', position: { row: 5, col: 15 } },
+    { symbol: 'Te', name: 'Tellurium', atomic: 52, category: 'metalloid', info: 'Used in semiconductors.', position: { row: 5, col: 16 } },
+    { symbol: 'I', name: 'Iodine', atomic: 53, category: 'nonmetal', info: 'Used in antiseptics.', position: { row: 5, col: 17 } },
+    { symbol: 'Xe', name: 'Xenon', atomic: 54, category: 'noble gas', info: 'Used in high-intensity lighting.', position: { row: 5, col: 18 } },
+    { symbol: 'Cs', name: 'Cesium', atomic: 55, category: 'metal', info: 'Highly reactive and used in atomic clocks.', position: { row: 6, col: 1 } },
+    { symbol: 'Ba', name: 'Barium', atomic: 56, category: 'metal', info: 'Used in medical imaging.', position: { row: 6, col: 2 } },
+    { symbol: 'La', name: 'Lanthanum', atomic: 57, category: 'lanthanide', info: 'Used in camera and telescope lenses.', position: { row: 6, col: 3 } },
+    { symbol: 'Ce', name: 'Cerium', atomic: 58, category: 'lanthanide', info: 'Used in catalytic converters.', position: { row: 6, col: 4 } },
+    { symbol: 'Pr', name: 'Praseodymium', atomic: 59, category: 'lanthanide', info: 'Used in magnets and glass.' , position: { row: 6, col: 5 } },
+    { symbol: 'Nd', name: 'Neodymium', atomic: 60, category: 'lanthanide', info: 'Used in powerful magnets.', position: { row: 6, col: 6 } },
+    { symbol: 'Pm', name: 'Promethium', atomic: 61, category: 'lanthanide', info: 'Used in luminous paints.', position: { row: 6, col: 7 } },
+    { symbol: 'Sm', name: 'Samarium', atomic: 62, category: 'lanthanide', info: 'Used in magnets and nuclear reactors.', position: { row: 6, col: 8 } },
+    { symbol: 'Eu', name: 'Europium', atomic: 63, category: 'lanthanide', info: 'Used in phosphors for color television.', position: { row: 6, col: 9 } },
+    { symbol: 'Gd', name: 'Gadolinium', atomic: 64, category: 'lanthanide', info: 'Used in MRI contrast agents.', position: { row: 6, col: 10 } },
+    { symbol: 'Tb', name: 'Terbium', atomic: 65, category: 'lanthanide', info: 'Used in phosphors and laser materials.', position: { row: 6, col: 11 } },
+    { symbol: 'Dy', name: 'Dysprosium', atomic: 66, category: 'lanthanide', info: 'Used in magnets and nuclear reactors.', position: { row: 6, col: 12 } },
+    { symbol: 'Ho', name: 'Holmium', atomic: 67, category: 'lanthanide', info: 'Used in lasers and nuclear reactors.', position: { row: 6, col: 13 } },
+    { symbol: 'Er', name: 'Erbium', atomic: 68, category: 'lanthanide', info: 'Used in lasers and optical fibers.', position: { row: 6, col: 14 } },
+    { symbol: 'Tm', name: 'Thulium', atomic: 69, category: 'lanthanide', info: 'Used in lasers and nuclear reactors.', position: { row: 6, col: 15 } },
+    { symbol: 'Yb', name: 'Ytterbium', atomic: 70, category: 'lanthanide', info: 'Used in lasers and nuclear reactors.', position: { row: 6, col: 16 } },
+    { symbol: 'Lu', name: 'Lutetium', atomic: 71, category: 'lanthanide', info: 'Used in cancer treatment and PET scans.', position: { row: 6, col: 17 } },
+    { symbol: 'Hf', name: 'Hafnium', atomic: 72, category: 'metal', info: 'Used in nuclear reactors and high-temperature alloys.', position: { row: 7, col: 4 } },
+    { symbol: 'Ta', name: 'Tantalum', atomic: 73, category: 'metal', info: 'Used in electronic components and surgical implants.', position: { row: 7, col: 5 } },
+    { symbol: 'W', name: 'Tungsten', atomic: 74, category: 'metal', info: 'Has the highest melting point of all elements.', position: { row: 7, col: 6 } },
+    { symbol: 'Re', name: 'Rhenium', atomic: 75, category: 'metal', info: 'Used in jet engines and catalytic converters.', position: { row: 7, col: 7 } },
+    { symbol: 'Os', name: 'Osmium', atomic: 76, category: 'metal', info: 'The densest naturally occurring element.', position: { row: 7, col: 8 } },
+    { symbol: 'Ir', name: 'Iridium', atomic: 77, category: 'metal', info: 'Used in spark plugs and electrical contacts.', position: { row: 7, col: 9 } },
+    { symbol: 'Pt', name: 'Platinum', atomic: 78, category: 'metal', info: 'Used in jewelry and catalytic converters.', position: { row: 7, col: 10 } },
+    { symbol: 'Au', name: 'Gold', atomic: 79, category: 'metal', info: 'Precious metal used in jewelry and electronics.', position: { row: 7, col: 11 } },
+    { symbol: 'Hg', name: 'Mercury', atomic: 80, category: 'metal', info: 'The only metal that is liquid at room temperature.', position: { row: 7, col: 12 } },
+    { symbol: 'Tl', name: 'Thallium', atomic: 81, category: 'metal', info: 'Used in electronics and high-temperature superconductors.', position: { row: 7, col: 13 } },
+    { symbol: 'Pb', name: 'Lead', atomic: 82, category: 'metal', info: 'Used in batteries and radiation shielding.', position: { row: 7, col: 14 } },
+    { symbol: 'Bi', name: 'Bismuth', atomic: 83, category: 'metal', info: 'Used in cosmetics and pharmaceuticals.', position: { row: 7, col: 15 } },
+    { symbol: 'Po', name: 'Polonium', atomic: 84, category: 'metal', info: 'Highly radioactive element.', position: { row: 7, col: 16 } },
+    { symbol: 'At', name: 'Astatine', atomic: 85, category: 'nonmetal', info: 'Highly radioactive and rare.', position: { row: 7, col: 17 } },
+    { symbol: 'Rn', name: 'Radon', atomic: 86, category: 'noble gas', info: 'Radioactive noble gas.', position: { row: 7, col: 18 } },
+    { symbol: 'Fr', name: 'Francium', atomic: 87, category: 'metal', info: 'Highly radioactive and rare.', position: { row: 8, col: 1 } },
+    { symbol: 'Ra', name: 'Radium', atomic: 88, category: 'metal', info: 'Highly radioactive and used in cancer treatment.', position: { row: 8, col: 2 } },
+    { symbol: 'Ac', name: 'Actinium', atomic: 89, category: 'actinide', info: 'Used in radiation therapy.', position: { row: 8, col: 3 } },
+    { symbol: 'Th', name: 'Thorium', atomic: 90, category: 'actinide', info: 'Used in nuclear reactors.', position: { row: 8, col: 4 } },
+    { symbol: 'Pa', name: 'Protactinium', atomic: 91, category: 'actinide', info: 'Used in nuclear research.', position: { row: 8, col: 5 } },
+    { symbol: 'U', name: 'Uranium', atomic: 92, category: 'actinide', info: 'Used as fuel in nuclear reactors.', position: { row: 8, col: 6 } },
+    { symbol: 'Np', name: 'Neptunium', atomic: 93, category: 'actinide', info: 'Used in nuclear reactors and research.', position: { row: 8, col: 7 } },
+    { symbol: 'Pu', name: 'Plutonium', atomic: 94, category: 'actinide', info: 'Used in nuclear weapons and reactors.', position: { row: 8, col: 8 } },
+    { symbol: 'Am', name: 'Americium', atomic: 95, category: 'actinide', info: 'Used in smoke detectors and as a neutron source.', position: { row: 8, col: 9 } },
+    { symbol: 'Cm', name: 'Curium', atomic: 96, category: 'actinide', info: 'Used in nuclear research and medicine.', position: { row: 8, col: 10 } },
+    { symbol: 'Bk', name: 'Berkelium', atomic: 97, category: 'actinide', info: 'Used in nuclear research.', position: { row: 8, col: 11 } },
+    { symbol: 'Cf', name: 'Californium', atomic: 98, category: 'actinide', info: 'Used in nuclear reactors and medical treatments.', position: { row: 8, col: 12 } },
+    { symbol: 'Es', name: 'Einsteinium', atomic: 99, category: 'actinide', info: 'Used in research.', position: { row: 8, col: 13 } },
+    { symbol: 'Fm', name: 'Fermium', atomic: 100, category: 'actinide', info: 'Used in research.', position: { row: 8, col: 14 } },
+    { symbol: 'Md', name: 'Mendelevium', atomic: 101, category: 'actinide', info: 'Used in research.', position: { row: 8, col: 15 } },
+    { symbol: 'No', name: 'Nobelium', atomic: 102, category: 'actinide', info: 'Used in research.', position: { row: 8, col: 16 } },
+    { symbol: 'Lr', name: 'Lawrencium', atomic: 103, category: 'actinide', info: 'Used in research.', position: { row: 8, col: 17 } },
+    { symbol: 'Rf', name: 'Rutherfordium', atomic: 104, category: 'metal', info: 'Used in research.', position: { row: 9, col: 4 } },
+    { symbol: 'Db', name: 'Dubnium', atomic: 105, category: 'metal', info: 'Used in research.', position: { row: 9, col: 5 } },
+    { symbol: 'Sg', name: 'Seaborgium', atomic: 106, category: 'metal', info: 'Used in research.', position: { row: 9, col: 6 } },
+    { symbol: 'Bh', name: 'Bohrium', atomic: 107, category: 'metal', info: 'Used in research.', position: { row: 9, col: 7 } },
+    { symbol: 'Hs', name: 'Hassium', atomic: 108, category: 'metal', info: 'Used in research.', position: { row: 9, col: 8 } },
+    { symbol: 'Mt', name: 'Meitnerium', atomic: 109, category: 'metal', info: 'Used in research.', position: { row: 9, col: 9 } },
+    { symbol: 'Ds', name: 'Darmstadtium', atomic: 110, category: 'metal', info: 'Used in research.', position: { row: 9, col: 10 } },
+    { symbol: 'Rg', name: 'Roentgenium', atomic: 111, category: 'metal', info: 'Used in research.', position: { row: 9, col: 11 } },
+    { symbol: 'Cn', name: 'Copernicium', atomic: 112, category: 'metal', info: 'Used in research.', position: { row: 9, col: 12 } },
+    { symbol: 'Nh', name: 'Nihonium', atomic: 113, category: 'metal', info: 'Used in research.', position: { row: 10, col: 1 } },
+    { symbol: 'Fl', name: 'Flerovium', atomic: 114, category: 'metal', info: 'Used in research.', position: { row: 10, col: 2 } },
+    { symbol: 'Mc', name: 'Moscovium', atomic: 115, category: 'metal', info: 'Used in research.', position: { row: 10, col: 3 } },
+    { symbol: 'Lv', name: 'Livermorium', atomic: 116, category: 'metal', info: 'Used in research.', position: { row: 10, col: 4 } },
+    { symbol: 'Ts', name: 'Tennessine', atomic: 117, category: 'nonmetal', info: 'Used in research.', position: { row: 10, col: 5 } },
+    { symbol: 'Og', name: 'Oganesson', atomic: 118, category: 'noble gas', info: 'Used in research.', position: { row: 10, col: 6 } }
+  ];  
+  
+  function createTable() {
+    const table = document.getElementById('periodic-table');
+    table.innerHTML = '';
+  
+    // Create table headers
+    const headerRow = document.createElement('tr');
+    const headers = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
+    headers.forEach(header => {
+      const th = document.createElement('th');
+      th.innerText = header;
+      headerRow.appendChild(th);
     });
-}
-
-// Game over
-function gameOver() {
-    gameRunning = false;
-    if (score > highScore) {
-        highScore = score;
-        updateLeaderboard();
+    table.appendChild(headerRow);
+  
+    // Create table rows
+    for (let row = 1; row <= 10; row++) {
+      const tr = document.createElement('tr');
+      for (let col = 1; col <= 18; col++) {
+        const td = document.createElement('td');
+        td.id = `cell-${row}-${col}`;
+        td.className = 'element-cell';  // Ensure this class is set for every cell
+        tr.appendChild(td);
+      }
+      table.appendChild(tr);
     }
-}
-
-// Update leaderboard
-function updateLeaderboard() {
-    leaderboard.push({ score: highScore, date: new Date().toISOString() });
-    leaderboard.sort((a, b) => b.score - a.score);
-    if (leaderboard.length > LEADERBOARD_SIZE) {
-        leaderboard.pop();
+  
+    // Populate table with elements after creating the structure
+    populateTable();
+  }
+  
+  function populateTable() {
+    const tableCells = document.querySelectorAll('.element-cell');
+  
+    elements.forEach(element => {
+      const cell = document.getElementById(`cell-${element.position.row}-${element.position.col}`);
+      if (cell) {
+        cell.innerHTML = `<div class="element ${element.category}" onclick="showDetails('${element.symbol}')">
+                            <span class="symbol">${element.symbol}</span>
+                            <span class="atomic">${element.atomic}</span>
+                            <span class="name">${element.name}</span>
+                          </div>`;
+      }
+    });
+  } 
+  
+  function showDetails(symbol) {
+    const element = elements.find(el => el.symbol === symbol);
+    if (element) {
+      alert(`Element: ${element.name}\nSymbol: ${element.symbol}\nAtomic Number: ${element.atomic}\nInfo: ${element.info}\nCopied Details to Clipboard ;)`);
     }
-    localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
-}
+  }
+  
+  function filterTable() {
+    const searchTerm = document.getElementById('search-bar').value.toLowerCase();
+    const selectedCategory = document.getElementById('category-filter').value;
+  
+    const tableCells = document.querySelectorAll('.element-cell');
+  
+    tableCells.forEach(cell => {
+      const elementDiv = cell.querySelector('.element');
+      const element = elements.find(el => `cell-${el.position.row}-${el.position.col}` === cell.id);
+      if (element) {
+        const symbol = element.symbol.toLowerCase();
+        const name = element.name.toLowerCase();
+        const category = element.category;
+  
+        const matchesSearch = symbol.includes(searchTerm) || name.includes(searchTerm);
+        const matchesCategory = !selectedCategory || category === selectedCategory;
+  
+        if (matchesSearch && matchesCategory) {
+          cell.style.display = '';
+          cell.innerHTML = `<div class="element ${element.category}" onclick="showDetails('${element.symbol}')">
+                              <span class="symbol">${element.symbol}</span>
+                              <span class="atomic">${element.atomic}</span>
+                              <span class="name">${element.name}</span>
+                            </div>`;
+        } else {
+          cell.style.display = 'none';
+          cell.innerHTML = ''; // Leave cell blank if not matching
+        }
+      } else {
+        cell.style.display = 'none';
+        cell.innerHTML = ''; // Leave cell blank if not matching
+      }
+    });
+  }
+  
+  document.getElementById('search-bar').addEventListener('input', filterTable);
+  document.getElementById('category-filter').addEventListener('change', filterTable);
+  
+  createTable();
+  
+  // Ensure background music plays on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    const backgroundMusic = document.getElementById('background-music');
+    
+    // Attempt to play the music
+    const playMusic = () => {
+        backgroundMusic.play().catch(error => {
+            console.log('Music playback failed:', error);
+        });
+    };
 
-// Show leaderboard
-function showLeaderboard() {
-    pauseMenu.style.display = 'none';
-    leaderboardMenu.style.display = 'block';
-}
+    // Play music on page load
+    playMusic();
 
-// Hide leaderboard
-function hideLeaderboard() {
-    leaderboardMenu.style.display = 'none';
-    pauseMenu.style.display = 'block';
-}
-
-// Render leaderboard
-function renderLeaderboard() {
-    leaderboardList.innerHTML = '';
-    for (let entry of leaderboard) {
-        const li = document.createElement('li');
-        li.textContent = `Score: ${entry.score} - Date: ${new Date(entry.date).toLocaleString()}`;
-        leaderboardList.appendChild(li);
-    }
-}
-
-// Reset game
-function resetGame() {
-    birdY = CANVAS_HEIGHT / 2;
-    birdVelocity = 0;
-    pipes = [];
-    score = 0;
-    pipeTimer = 0;
-    pipeSpeed = 2; // Reset pipe speed
-    backgroundSpeed = BACKGROUND_SPEED; // Reset background speed
-    foregroundSpeed = FOREGROUND_SPEED; // Reset foreground speed
-    gameRunning = true;
-    gameStarted = true;
-    countdown = 3;
-    countdownStartTime = Date.now(); // Initialize countdownStartTime
-}
-
-// Toggle pause menu
-function togglePause() {
-    gamePaused = !gamePaused;
-    if (gamePaused) {
-        gameRunning = false;
-    } else {
-        gameRunning = true;
-    }
-}
-
-// Start the game loop
-gameLoop();
+    // Add event listener for user interaction to ensure music plays
+    document.body.addEventListener('click', playMusic);
+    document.body.addEventListener('keydown', playMusic);
+  });
+  
